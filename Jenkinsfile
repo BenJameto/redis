@@ -1,25 +1,32 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_IMAGE = "my-redis"
+        DOCKER_TAG = "latest"
+    }
+
     stages {
-        stage('Clone repository') {
+        stage('Build') {
             steps {
-                git branch: 'main', credentialsId: 'redis-git', url: 'https://github.com/BenJameto/redis'
+                script {
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                }
             }
         }
 
-        stage('Deploy Redis') {
+        stage('Deploy') {
             steps {
                 script {
-                    docker.image('redis:latest').run('--name redis-server -d -p 6379:6379')
+                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").run("-d -p 6379:6379 --name redis-server")
                 }
             }
         }
     }
 
     post {
-        always {
-            echo 'Pipeline finished.'
+        failure {
+            echo 'The Pipeline failed :('
         }
     }
 }
