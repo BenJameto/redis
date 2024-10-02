@@ -1,12 +1,12 @@
 pipeline {
     agent any
 
-    stages {
         stage('Clone repository') {
             steps {
-                git 'https://github.com/tu-repositorio/redis-deployment.git'
+                git credentialsId: 'git-redis', url: 'https://github.com/BenJameto/redis'
             }
         }
+
 
         stage('Build Redis Docker Image') {
             steps {
