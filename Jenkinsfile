@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Clone repository') {
             steps {
-                git branch: 'main', credentialsId: 'git-redis', url: 'https://github.com/BenJameto/redis'
+                git branch: 'main', credentialsId: 'redis-git', url: 'https://github.com/BenJameto/redis'
             }
         }
 
