@@ -2,22 +2,23 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "my-redis"
+        DOCKER_IMAGE = "redis"
         DOCKER_TAG = "latest"
     }
 
     stages {
-        stage('Build') {
+        stage('Remove Old Container') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    // Si el contenedor redis-server existe, lo eliminamos
+                    sh 'docker rm -f redis-server || true'
                 }
             }
         }
-
-        stage('Deploy') {
+        stage('Run New Redis Container') {
             steps {
                 script {
+                    // Desplegamos un nuevo contenedor Redis
                     docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").run("-d -p 6379:6379 --name redis-server")
                 }
             }
@@ -27,6 +28,9 @@ pipeline {
     post {
         failure {
             echo 'The Pipeline failed :('
+        }
+        success {
+            echo 'Redis container started successfully!'
         }
     }
 }
