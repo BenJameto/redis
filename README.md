@@ -8,7 +8,7 @@ pipeline {
     agent any
     
     environment {
-        KUBECONFIG = "/home/jenkins/.kube/config" // Ruta al archivo de configuración de kube (asegúrate de que Jenkins tenga acceso)
+        KUBECONFIG = "/home/jenkins/.kube/config"
     }
     
     stages {
@@ -72,6 +72,46 @@ pipeline {
         }
         failure {
             echo 'El despliegue falló. Revisa los logs para más detalles.'
+        }
+    }
+}
+
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Clonar el repositorio') {
+            steps {
+                // Clonar el repositorio desde GitHub para obtener el archivo nginx-deployment.yaml
+                git url: 'https://github.com/BenJameto/redis.git', branch: 'main'
+            }
+        }
+
+        stage('Desplegar en Kubernetes') {
+            steps {
+                script {
+                    // Aplicar el archivo nginx-deployment.yaml en Kubernetes
+                    sh 'kubectl apply -f redis-deployment.yaml'
+                }
+            }
+        }
+
+        stage('Verificar Despliegue') {
+            steps {
+                // Verificar que el pod y el servicio de Redis están corriendo
+                sh 'kubectl get pods --all-namespaces'
+                sh 'kubectl get services -n jenkins'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Despliegue completado exitosamente.'
+        }
+        failure {
+            echo 'El despliegue ha fallado.'
         }
     }
 }
