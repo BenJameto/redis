@@ -1,117 +1,77 @@
-Este es un ejercicio para comprender el flujo de integracion y despliegue continuo usando la herramienta de Jenkins, Docker, Minikube y cubernetes. 
-para poder ejecutar este ejercicio es necesario tener instalado Jenkins de manera local o en contenedor, asi mismo tener configurado docker y kubernetes, para evitar problemas al momento del despliegue.
 
+# Despliegue Automático de Redis Usando CI/CD con Jenkins y GitHub
 
-pipeline:
+Este documento proporciona una guía paso a paso para configurar un pipeline de CI/CD para desplegar Redis utilizando Jenkins, GitHub y Kubernetes. El pipeline está configurado para desplegar Redis automáticamente cada vez que se realiza un commit en la rama `main` en GitHub.
 
+## 1. Configuración en GitHub
+
+1. **Crear un Repositorio en GitHub**: Para este caso solo basta clonar el repositorio.
+
+2. **Configura un Webhook en GitHub**:
+   - Ve a **Settings** > **Webhooks** en tu repositorio.
+   - Haz clic en **Add webhook** y establece la **Payload URL** con el endpoint de Jenkins para el webhook (en mi caso, `http://192.168.49.2:30000/github-webhook/`).
+   - Selecciona **Content type** como `application/json`.
+   - Asegúrate de seleccionar **Just the push event** para que el webhook se active solo cuando haya cambios en `main`.
+
+## 2. Configuración en Jenkins
+
+1. **Instala los Plugins Necesarios**:
+   - Ve a **Manage Jenkins** > **Manage Plugins**.
+   - Asegúrate de que los siguientes plugins estén instalados: **Git Plugin**, **Pipeline Plugin** y **GitHub Integration Plugin**.
+
+2. **Agrega GitHub en Jenkins**:
+   - Ve a **Manage Jenkins** > **Configure System** > **GitHub**.
+   - Agrega tus credenciales de GitHub y verifica la conexión.
+
+3. **Crea un Nuevo Job de Pipeline**:
+   - Ve a **New Item** en Jenkins y selecciona **Pipeline**.
+   - Nombra el job, por ejemplo, `deploy-redis`.
+   - En la sección **Pipeline**, selecciona **Pipeline script from SCM** y configura lo siguiente:
+     - **SCM**: Selecciona **Git**.
+     - **Repository URL**: Ingresa la URL de tu repositorio de GitHub.
+     - **Branch Specifier**: Ingresa `*/main` para rastrear solo la rama `main`.
+     - **Script Path**: Asegúrate de que apunte al archivo `Jenkinsfile` en el repositorio.
+
+## 3. Jenkinsfile para Desplegar Redis
+
+En tu repositorio de GitHub (rama main), crea o actualiza el archivo `Jenkinsfile` con el siguiente contenido:
+
+```groovy
 pipeline {
     agent any
-    
-    environment {
-        KUBECONFIG = "/home/jenkins/.kube/config"
-    }
-    
     stages {
-        stage('Clonar Repositorio') {
+        stage('Checkout') {
             steps {
-                // Clonar el repositorio de GitHub
-                git branch: 'main', url: 'https://github.com/tu-usuario/tu-repo.git'
+                checkout scm
             }
         }
-
-        stage('Construir Imagen Docker (opcional)') {
-            when {
-                expression { fileExists('Dockerfile') } // Sólo si hay un Dockerfile
-            }
+        stage('Deploy Redis') {
             steps {
                 script {
-                    docker.build('tu-usuario/redis-custom:latest')
-                }
-            }
-        }
-
-        stage('Autenticar en DockerHub (opcional)') {
-            when {
-                expression { fileExists('Dockerfile') } // Sólo si construyes una imagen
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                }
-            }
-        }
-
-        stage('Subir Imagen a DockerHub (opcional)') {
-            when {
-                expression { fileExists('Dockerfile') } // Sólo si construyes una imagen
-            }
-            steps {
-                sh 'docker push tu-usuario/redis-custom:latest'
-            }
-        }
-
-        stage('Desplegar Redis en Minikube') {
-            steps {
-                // Aplicar el manifiesto de Kubernetes
-                sh 'kubectl apply -f redis-deployment.yaml'
-            }
-        }
-        
-        stage('Verificar Despliegue') {
-            steps {
-                // Verificar que el pod y el servicio de Redis están corriendo
-                sh 'kubectl get pods'
-                sh 'kubectl get services'
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Redis desplegado exitosamente en Minikube!'
-        }
-        failure {
-            echo 'El despliegue falló. Revisa los logs para más detalles.'
-        }
-    }
-}
-
-
-pipeline {
-    agent any
-
-    stages {
-        stage('Clonar el repositorio') {
-            steps {
-                // Clonar el repositorio desde GitHub para obtener el archivo nginx-deployment.yaml
-                git url: 'https://github.com/BenJameto/redis.git', branch: 'main'
-            }
-        }
-
-        stage('Desplegar en Kubernetes') {
-            steps {
-                script {
-                    // Aplicar el archivo nginx-deployment.yaml en Kubernetes
                     sh 'kubectl apply -f redis-deployment.yaml'
                 }
             }
         }
-
-        stage('Verificar Despliegue') {
-            steps {
-                // Verificar que el pod y el servicio de Redis están corriendo
-                sh 'kubectl get pods --all-namespaces'
-                sh 'kubectl get services -n jenkins'
-            }
-        }
     }
-
     post {
         success {
-            echo 'Despliegue completado exitosamente.'
+            echo 'Redis ha sido desplegado exitosamente.'
         }
         failure {
-            echo 'El despliegue ha fallado.'
+            echo 'Hubo un error en el despliegue de Redis.'
         }
     }
 }
+```
+
+## 4. Verificación
+
+1. **Prueba el Webhook**:
+   - Realiza un commit en la rama `main` en GitHub (por ejemplo, actualiza el archivo README) para activar el pipeline en Jenkins.
+
+2. **Monitorea el Despliegue**:
+   - Ve al Dashboard de Jenkins y observa el job del pipeline para asegurarte de que se complete correctamente y que Redis se despliegue en el clúster de Kubernetes.
+
+## Conclusión
+
+Siguiendo estos pasos, tendrás un pipeline de CI/CD funcional que despliega Redis automáticamente con cada commit en la rama `main`. Esta configuración permite un despliegue continuo usando GitHub y Jenkins, mejorando la automatización y eficiencia del proceso de despliegue.
